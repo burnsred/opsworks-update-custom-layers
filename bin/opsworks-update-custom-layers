@@ -32,18 +32,22 @@ if final_status == 'failed':
     sys.stderr.write("--Failed\n")
     sys.exit(1)
 
-
 layers = connection.describe_layers(stack_id=args.stack_id)['Layers']
 
 # Update each layer
 for layer in layers:
+    deploy_recipes = layer['CustomRecipes']['Deploy']
+    if len(deploy_recipes) == 0:
+        continue
+
     sys.stderr.write("Updating layer {0}\n".format(layer['Name']))
+
     deployment_id = create_deployment(
         args.stack_id,
         {
             "Name": "execute_recipes",
             "Args": {
-                "recipes": layer['CustomRecipes']['Deploy']
+                "recipes": deploy_recipes
             }
         },
         "{0}: {1}".format(layer['Name'], args.comment),
