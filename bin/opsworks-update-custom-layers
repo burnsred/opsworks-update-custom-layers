@@ -5,7 +5,7 @@ import sys
 
 from boto import opsworks
 
-from opsworks_create_deployment_and_wait import (
+from opsworks_update_custom_layers import (
     connection,
     create_deployment,
     wait_until_deployment_is_finished
