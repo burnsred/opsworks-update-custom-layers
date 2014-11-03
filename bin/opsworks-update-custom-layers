@@ -1,0 +1,57 @@
+#!/usr/bin/env python
+
+import argparse
+import sys
+
+from boto import opsworks
+
+from opsworks_create_deployment_and_wait import (
+    connection,
+    create_deployment,
+    wait_until_deployment_is_finished
+)
+
+parser = argparse.ArgumentParser(description='Update all custom layers in an OpsWorks stack.')
+
+parser.add_argument('--stack-id', action='store', required=True)
+parser.add_argument('--comment', action='store', required=True)
+
+args = parser.parse_args()
+
+sys.stderr.write("Updating custom cookbooks\n")
+deployment_id = create_deployment(
+    args.stack_id,
+    {
+        "Name": "update_custom_cookbooks",
+    },
+    args.comment
+)
+sys.stderr.write("--Waiting\n")
+final_status = wait_until_deployment_is_finished(deployment_id)
+if final_status == 'failed':
+    sys.stderr.write("--Failed\n")
+    sys.exit(1)
+
+
+layers = connection.describe_layers(stack_id=args.stack_id)['Layers']
+
+# Update each layer
+for layer in layers:
+    sys.stderr.write("Updating layer {0}\n".format(layer['Name']))
+    deployment_id = create_deployment(
+        args.stack_id,
+        {
+            "Name": "execute_recipes",
+            "Args": {
+                "recipes": layer['CustomRecipes']['Deploy']
+            }
+        },
+        "{0}: {1}".format(layer['Name'], args.comment),
+        layer_id=layer['LayerId']
+    )
+    sys.stderr.write("--Waiting\n")
+    final_status = wait_until_deployment_is_finished(deployment_id)
+
+    if final_status == 'failed':
+        sys.stderr.write("--Failed\n")
+        sys.exit(1)
